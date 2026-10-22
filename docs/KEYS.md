@@ -122,6 +122,7 @@ the screen at checkout instead of paying.
 | Variable | What it unlocks | Where |
 |---|---|---|
 | `BRAVE_SEARCH_API_KEY` | Better web search than the DuckDuckGo fallback | [brave.com/search/api](https://brave.com/search/api/) |
+| `YOU_SEARCH=1`, or `YDC_API_KEY` | You.com web search instead of Brave or DuckDuckGo. `YOU_SEARCH=1` needs no key (100 searches a day, counted per IP); `YDC_API_KEY` uses the keyed API | [you.com/platform](https://you.com/platform) |
 | `CONTEXT_DEV_API_KEY` | Sourced answers and public page research through `context_answers` | [context.dev](https://context.dev) |
 | `AMPLE_SIGNUP=1`, or `AMPLE_CLIENT_ID` and `AMPLE_CLIENT_SECRET` | Web apps the agent builds, deployed to public URLs through `ample_deploy`. `AMPLE_SIGNUP=1` needs no key: each agent signs up for its own account ([AMPLE.md](AMPLE.md)) | [ample.computer](https://ample.computer), `ample auth signup` |
 | `INKBOX_VOICE` | The Voice AI voice `phone_call` speaks with (a voice id from the Inkbox console's voice list). Unset: the organization's default voice ([INKBOX.md](INKBOX.md#phone-calls)) | Inkbox console |
