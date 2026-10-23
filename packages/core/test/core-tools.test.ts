@@ -445,6 +445,28 @@ describe("web tools", () => {
     expect(n).toBe(2);
   });
 
+  it("web_search keeps the second Retry-After when the You.com retry is also rate limited", async () => {
+    let n = 0;
+    const fetchImpl = (async () => {
+      n++;
+      return new Response("", { status: 429, headers: { "retry-after": n === 1 ? "0" : "120" } });
+    }) as typeof fetch;
+    const { run } = setup({ fetchImpl, youSearch: {} });
+    await expect(run("web_search", { query: "q" })).rejects.toThrow("retry after 120s");
+    expect(n).toBe(2);
+  });
+
+  it("web_search gives a keyed You.com 402 its own message", async () => {
+    const fetchImpl = (async () => new Response("", { status: 402 })) as typeof fetch;
+    const { run } = setup({ fetchImpl, youSearch: { apiKey: "ydc-key" } });
+    const err = await run("web_search", { query: "q" }).then(
+      () => undefined,
+      (e: unknown) => e as Error,
+    );
+    expect(err?.message).toContain("this API key");
+    expect(err?.message).not.toContain("set YDC_API_KEY");
+  });
+
   it("reports no results instead of failing", async () => {
     const { run, text } = setup({ fetchImpl: fakeFetch({ "https://html.duckduckgo.com/html/": { body: "<html></html>" } }) });
     expect(text(await run("web_search", { query: "zzz" }))).toContain("No results");

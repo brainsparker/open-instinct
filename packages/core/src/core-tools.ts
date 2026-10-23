@@ -460,6 +460,12 @@ const YOU_USER_AGENT = "youdotcom-integration/mariagorskikh-open-instinct";
 /** Longest Retry-After we wait out inside one tool call; anything longer fails with the wait in the message. */
 const YOU_MAX_RETRY_AFTER_S = 10;
 
+/** 429 error that keeps the server's Retry-After wait, when it sent one. */
+function youRateLimitError(res: Response): Error {
+  const wait = Number(res.headers.get("retry-after"));
+  return new Error(`You.com search is rate limited (HTTP 429)${Number.isFinite(wait) && wait > 0 ? `; retry after ${wait}s` : ""}`);
+}
+
 /** You.com search: POST with X-API-Key when keyed, GET on the keyless endpoint otherwise. Retries a 429 once if Retry-After is short. */
 async function youComSearch(doFetch: typeof fetch, key: string | undefined, query: string, signal?: AbortSignal): Promise<SearchHit[]> {
   const send = (): Promise<Response> => {
@@ -478,15 +484,19 @@ async function youComSearch(doFetch: typeof fetch, key: string | undefined, quer
   let res = await send();
   if (res.status === 429) {
     const wait = Number(res.headers.get("retry-after"));
-    if (!Number.isFinite(wait) || wait < 0 || wait > YOU_MAX_RETRY_AFTER_S) {
-      throw new Error(`You.com search is rate limited (HTTP 429)${Number.isFinite(wait) && wait > 0 ? `; retry after ${wait}s` : ""}`);
-    }
+    if (!Number.isFinite(wait) || wait < 0 || wait > YOU_MAX_RETRY_AFTER_S) throw youRateLimitError(res);
     await new Promise((r) => setTimeout(r, wait * 1000));
     res = await send();
   }
   if (res.status === 401 || res.status === 403) throw new Error(`You.com search rejected the API key (HTTP ${res.status}); check YDC_API_KEY`);
-  if (res.status === 402) throw new Error("You.com search quota is used up (HTTP 402). The keyless tier allows 100 searches a day per IP; set YDC_API_KEY for more");
-  if (res.status === 429) throw new Error("You.com search is rate limited (HTTP 429)");
+  if (res.status === 402) {
+    throw new Error(
+      key
+        ? "You.com search quota is used up for this API key (HTTP 402); check the plan or credits for YDC_API_KEY"
+        : "You.com search quota is used up (HTTP 402). The keyless tier allows 100 searches a day per IP; set YDC_API_KEY for more",
+    );
+  }
+  if (res.status === 429) throw youRateLimitError(res);
   if (!res.ok) throw new Error(`You.com search failed: HTTP ${res.status}`);
   const data = (await res.json()) as { results?: { web?: Array<{ title?: string; url?: string; description?: string; snippets?: string[] }> } };
   return (data.results?.web ?? [])
